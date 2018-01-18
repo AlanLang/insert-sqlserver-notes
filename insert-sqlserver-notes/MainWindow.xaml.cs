@@ -31,7 +31,15 @@ namespace insert_sqlserver_notes
 
         private void Window_Drop(object sender, DragEventArgs e)
         {
-
+            string filepath = ((System.Array)e.Data.GetData(DataFormats.FileDrop)).GetValue(0).ToString();
+            string s = System.IO.Path.GetExtension(filepath);
+            if (System.IO.Path.GetExtension(filepath) != ".yml")
+            {
+                Msg("只允许上传yml文件!");
+                return;
+            }
+            FileStream fs = new FileStream(filepath, FileMode.Open, FileAccess.Read);
+            MakeSql(fs);
         }
 
         private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -47,38 +55,45 @@ namespace insert_sqlserver_notes
             if (dialog.ShowDialog() == true)
             {
                 FileStream fs = new FileStream(dialog.FileName, FileMode.Open, FileAccess.Read);
+                MakeSql(fs);
+            }
+        }
 
-                var serializer = new Serializer();
-                ymldoc ymldoc = new insert_sqlserver_notes.ymldoc();
-                try
+        private void MakeSql(FileStream fs)
+        {
+            var serializer = new Serializer();
+            ymldoc ymldoc = new insert_sqlserver_notes.ymldoc();
+            try
+            {
+                ymldoc = serializer.Deserialize<ymldoc>(fs);
+            }
+            catch (Exception ex)
+            {
+                Msg("解析配置文件异常：" + ex.Message);
+                return;
+            }
+            SqlShow ss = new insert_sqlserver_notes.SqlShow();
+            ss.messagelog.Text = "";
+            Msg("开始解析，请稍等");
+            foreach (var table in ymldoc.table)
+            {
+                if (string.IsNullOrEmpty(table.name))
                 {
-                    ymldoc = serializer.Deserialize<ymldoc>(fs);
+                    break;
                 }
-                catch (Exception ex)
+                ss.messagelog.AppendText($"IF ((SELECT COUNT(*) from fn_listextendedproperty('MS_Description', 'SCHEMA', N'dbo', 'TABLE', N'{table.name}', null, null)) > 0) execute sp_updateextendedproperty N'MS_Description',N'{table.note}',N'Schema',N'dbo',N'table',N'{table.name}',null,null ELSE execute sp_addextendedproperty N'MS_Description',N'{table.note}',N'Schema',N'dbo',N'table',N'{table.name}',null,null;\r");
+                foreach (var column in table.column)
                 {
-                    Msg("解析配置文件异常：" + ex.Message);
-                    return;
-                }
-                SqlShow ss = new insert_sqlserver_notes.SqlShow();
-                ss.messagelog.Text = "";
-                foreach (var table in ymldoc.table)
-                {
-                    if (string.IsNullOrEmpty(table.name))
+                    if (string.IsNullOrEmpty(column.name))
                     {
                         break;
                     }
-                    ss.messagelog.AppendText($"IF ((SELECT COUNT(*) from fn_listextendedproperty('MS_Description', 'SCHEMA', N'dbo', 'TABLE', N'{table.name}', null, null)) > 0) execute sp_updateextendedproperty N'MS_Description',N'{table.note}',N'Schema',N'dbo',N'table',N'{table.name}',null,null ELSE execute sp_addextendedproperty N'MS_Description',N'{table.note}',N'Schema',N'dbo',N'table',N'{table.name}',null,null;\r");
-                    foreach (var column in table.column)
-                    {
-                        if (string.IsNullOrEmpty(column.name))
-                        {
-                            break;
-                        }
-                        ss.messagelog.AppendText($"IF ((SELECT COUNT(*) from fn_listextendedproperty('MS_Description', 'SCHEMA', N'dbo', 'TABLE', N'{table.name}', 'COLUMN', N'{column.name}')) > 0) execute sp_updateextendedproperty N'MS_Description',N'{column.note}',N'Schema',N'dbo',N'table',N'{table.name}',N'column',N'{column.name}' ELSE execute sp_addextendedproperty N'MS_Description',N'{column.note}',N'Schema',N'dbo',N'table',N'{table.name}',N'column',N'{column.name}';\r");
-                    }
+                    ss.messagelog.AppendText($"IF ((SELECT COUNT(*) from fn_listextendedproperty('MS_Description', 'SCHEMA', N'dbo', 'TABLE', N'{table.name}', 'COLUMN', N'{column.name}')) > 0) execute sp_updateextendedproperty N'MS_Description',N'{column.note}',N'Schema',N'dbo',N'table',N'{table.name}',N'column',N'{column.name}' ELSE execute sp_addextendedproperty N'MS_Description',N'{column.note}',N'Schema',N'dbo',N'table',N'{table.name}',N'column',N'{column.name}';\r");
                 }
-                ss.Show();
             }
+            Msg("解析完毕");
+            Msg("***********");
+            ss.Show();
         }
 
         private void closeBtn_Click(object sender, RoutedEventArgs e)
