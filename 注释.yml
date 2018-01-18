@@ -1,0 +1,28 @@
+﻿table: 
+  - name: SysUser
+    note: 系统用户
+    column:
+      - name: UserID
+        note: 用户表自增ID
+      - name: UserCode
+        note: 用户代码
+      - name: UserName
+        note: 用户名称
+      - name: UserPwd
+        note: 用户密码
+      - name: UserMail
+        note: 用户邮件
+      - name: UserCreate
+        note: 条目生成时间
+      - name: UserModified
+        note: 条目修改时间
+
+  - name: SysMenu
+    note: 系统菜单
+    column: 
+      - name: MenuID
+        note: 系统菜单自增ID
+      - name: MenuName
+        note: 菜单名称
+      - name: MenuDesc
+        note: 菜单描述
